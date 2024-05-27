@@ -20,6 +20,9 @@
           >
             Append
           </el-button>
+          <el-button type="text" size="mini" @click="() => edit(data)">
+            Edit
+          </el-button>
           <el-button
             v-if="node.childNodes.length == 0"
             type="text"
@@ -31,15 +34,29 @@
         </span>
       </span></el-tree
     >
-    <el-dialog title="提示" :visible.sync="dialogVisible" width="30%">
+    <el-dialog
+      :title="title"
+      :visible.sync="dialogVisible"
+      width="30%"
+      :close-on-click-modal="false"
+    >
       <el-form :model="category">
         <el-form-item label="分类名称">
           <el-input v-model="category.name" autocomplete="off"></el-input>
         </el-form-item>
+        <el-form-item label="图标">
+          <el-input v-model="category.icon" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item label="计量单位">
+          <el-input
+            v-model="category.productUnit"
+            autocomplete="off"
+          ></el-input>
+        </el-form-item>
       </el-form>
       <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="addCategory"> 确 定 </el-button>
+        <el-button type="primary" @click="submitData"> 确 定 </el-button>
       </span>
     </el-dialog>
   </div>
@@ -54,6 +71,8 @@ export default {
   components: {},
   data() {
     return {
+      title: "",
+      dialogType: "", // edit or add
       menus: [],
       expandedKey: [],
       dialogVisible: false,
@@ -63,6 +82,9 @@ export default {
         catLevel: 0,
         showStatus: 1,
         sort: 0,
+        productUnit: "",
+        icon: "",
+        catId: null,
       },
       defaultProps: {
         children: "children",
@@ -84,9 +106,36 @@ export default {
 
     append(data) {
       console.log("append", data);
+      this.dialogType = "add";
+      this.title = "添加分类";
       this.dialogVisible = true;
       this.category.parentCid = data.catId;
       this.category.catLevel = data.catLevel * 1 + 1;
+      this.category.name = "";
+      this.category.catId = null;
+      this.category.icon = "";
+      this.category.productUnit = "";
+    },
+
+    edit(data) {
+      console.log("edit", data);
+      this.dialogType = "edit";
+      this.title = "编辑分类";
+      this.dialogVisible = true;
+
+      // 发送请求获取当前节点最新的数据
+      this.$http({
+        url: this.$http.adornUrl(`/product/category/info/${data.catId}`),
+        method: "get",
+      }).then(({ data }) => {
+        // 请求成功
+        console.log("要回显的数据：", data.data);
+        this.category.name = data.data.name;
+        this.category.catId = data.data.catId;
+        this.category.icon = data.data.icon;
+        this.category.productUnit = data.data.productUnit;
+        this.category.parentCid = data.data.parentCid;
+      });
     },
 
     remove(node, data) {
@@ -119,6 +168,14 @@ export default {
         });
     },
 
+    submitData() {
+      if (this.dialogType === "add") {
+        this.addCategory();
+      } else {
+        this.editCategory();
+      }
+    },
+
     // 添加三级分类
     addCategory() {
       console.log("添加分类", this.category);
@@ -135,6 +192,34 @@ export default {
         this.dialogVisible = false;
         // 重新请求菜单数据, 刷新页面
         this.getMenus();
+        // 展开父菜单
+        this.expandedKey = [this.category.parentCid];
+      });
+    },
+
+    editCategory() {
+      var { catId, name, icon, productUnit } = this.category;
+      var data = {
+        // 因名称一致，以下冒号可以省略
+        catId: catId,
+        name: name,
+        icon: icon,
+        productUnit: productUnit,
+      };
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update"),
+        method: "post",
+        data: this.$http.adornData(data, false),
+      }).then(({ data }) => {
+        this.$message({
+          message: "菜单修改成功",
+          type: "success",
+        });
+        // 关闭弹窗
+        this.dialogVisible = false;
+        // 重新请求菜单数据, 刷新页面
+        this.getMenus();
+        // 展开父菜单
         this.expandedKey = [this.category.parentCid];
       });
     },
