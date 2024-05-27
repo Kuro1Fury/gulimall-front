@@ -1,6 +1,12 @@
 <!--  -->
 <template>
   <div>
+    <el-switch
+      v-model="draggable"
+      active-text="开启拖拽"
+      inactive-text="关闭拖拽"
+    ></el-switch>
+    <!-- <el-button v-if="draggable" @click="batchSave">批量保存</el-button> -->
     <el-tree
       :data="menus"
       :props="defaultProps"
@@ -8,7 +14,7 @@
       show-checkbox
       node-key="catId"
       :default-expanded-keys="expandedKey"
-      draggable
+      :draggable="draggable"
       :allow-drop="allowDrop"
       @node-drop="handleDrop"
     >
@@ -74,6 +80,8 @@ export default {
   components: {},
   data() {
     return {
+      pCid: 0,
+      draggable: false,
       updateNodes: [],
       maxLevel: 0,
       title: "",
@@ -117,6 +125,7 @@ export default {
       // 当前正在拖动的节点 + 父节点所在的深度不大于3即可
 
       let deep = this.maxLevel - draggingNode.data.catLevel + 1;
+      // let deep = Math.abs(this.maxLevel - draggingNode.level + 1);
       console.log("深度: ", deep);
 
       if (type == "inner") {
@@ -141,6 +150,7 @@ export default {
         pCid = dropNode.data.catId;
         siblings = dropNode.childNodes;
       }
+      this.pCid = pCid;
 
       // 2. 当前节点最新顺序
       for (let i = 0; i < siblings.length; i++) {
@@ -166,23 +176,7 @@ export default {
 
       // 3. 当前节点最新层级
       console.log("updateNodes", this.updateNodes);
-      this.$http({
-        url: this.$http.adornUrl("/product/category/update/sort"),
-        method: "post",
-        data: this.$http.adornData(this.updateNodes, false),
-      }).then(({ data }) => {
-        this.$message({
-          message: "菜单顺序等修改成功",
-          type: "success",
-        });
-        // 重新请求菜单数据, 刷新页面
-        this.getMenus();
-        // 展开父菜单
-        this.expandedKey = [pCid];
-
-        this.updateNodes = [];
-        this.maxLevel = 0;
-      });
+      this.batchSave();
     },
 
     updateChildNodeLevel(node) {
@@ -330,6 +324,27 @@ export default {
         this.getMenus();
         // 展开父菜单
         this.expandedKey = [this.category.parentCid];
+      });
+    },
+
+    batchSave() {
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update/sort"),
+        method: "post",
+        data: this.$http.adornData(this.updateNodes, false),
+      }).then(({ data }) => {
+        this.$message({
+          message: "菜单顺序等修改成功",
+          type: "success",
+        });
+        // 重新请求菜单数据, 刷新页面
+        this.getMenus();
+        // 展开父菜单
+        this.expandedKey = [this.pCid];
+        this.updateNodes = [];
+        this.maxLevel = 0;
+
+        this.pCid = 0;
       });
     },
   },
