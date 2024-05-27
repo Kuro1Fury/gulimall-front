@@ -165,8 +165,24 @@ export default {
       }
 
       // 3. 当前节点最新层级
-
       console.log("updateNodes", this.updateNodes);
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update/sort"),
+        method: "post",
+        data: this.$http.adornData(this.updateNodes, false),
+      }).then(({ data }) => {
+        this.$message({
+          message: "菜单顺序等修改成功",
+          type: "success",
+        });
+        // 重新请求菜单数据, 刷新页面
+        this.getMenus();
+        // 展开父菜单
+        this.expandedKey = [pCid];
+
+        this.updateNodes = [];
+        this.maxLevel = 0;
+      });
     },
 
     updateChildNodeLevel(node) {
